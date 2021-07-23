@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace FS.Infrastructure.Data
@@ -24,6 +25,15 @@ namespace FS.Infrastructure.Data
                 .Element("span")
                 .InnerText
                 .Split(" ")[1];
+        }
+
+        internal static IEnumerable<string> GetUrls(HtmlNode node)
+        {
+            return node.Descendants()
+                .First(d => d.Id == "ausform")
+                .Descendants()
+                .Where(d => d.HasClass("col1ergebnis"))
+                .Select(d => d.Element("a").GetAttributeValue("href", ""));
         }
     }
 }

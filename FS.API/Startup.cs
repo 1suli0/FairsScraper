@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using System;
+using System.Linq;
 
 namespace FS.API
 {
@@ -20,29 +21,31 @@ namespace FS.API
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
+        // This method gets called by the runtime. Use this method to add
+        // services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddCors(options =>
             {
                 options.AddPolicy("CorsPolicy", builder =>
                 {
-                    builder
-                    .WithOrigins(Configuration
-                       .GetSection("AllowedHosts")
-                       .Get<string[]>())
-                    .AllowAnyHeader()
-                    .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                    .AllowCredentials();
+                    builder.AllowAnyHeader()
+                     .WithMethods("GET", "POST", "PUT", "DELETE")
+                     .AllowCredentials()
+                     .SetIsOriginAllowed((host) => Configuration
+                        .GetSection("AllowedHosts")
+                        .Get<string[]>().Any());
                 });
             });
             services.ConfigureDBContext(Configuration);
             services.ConfigureHttpClient(Configuration);
             services.ConfigureHostedService();
+            services.ConfigureExibitorLinks();
             services.AddControllers();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        // This method gets called by the runtime. Use this method to configure
+        // the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env,
             DBContext context)
         {

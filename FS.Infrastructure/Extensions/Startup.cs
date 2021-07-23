@@ -1,9 +1,11 @@
 ﻿using FS.Infrastructure.Context;
+using FS.Infrastructure.DTO;
 using FS.Infrastructure.Service;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Collections.Concurrent;
 
 namespace FS.Infrastructure.Extensions
 {
@@ -28,13 +30,29 @@ namespace FS.Infrastructure.Extensions
         {
             services.AddHttpClient("Fs", client =>
             {
-                client.BaseAddress = configuration.GetValue<Uri>("Website");
-            });
+                client.BaseAddress = configuration.GetValue<Uri>("Website:Url");
+                client.DefaultRequestHeaders.Add("Cookie",
+                    configuration.GetValue<string>("Website:Cookie"));
+            })
+                .AddPolicyHandler(Polly.Policy.GetRetryPolicy());
         }
 
         public static void ConfigureHostedService(this IServiceCollection services)
         {
-            services.AddHostedService<Worker>();
+            services.AddHostedService<PageWorker>();
         }
+
+        public static void ConfigureExibitorLinks(this IServiceCollection services)
+        {
+            services.AddSingleton(new ExibitorLinks() { Links = new BlockingCollection<string>() });
+        }
+
+        //public static void ConfigureHeaderPropagation(this IServiceCollection services)
+        //{
+        //    services.AddHeaderPropagation(options =>
+        //    {
+        //        options.Headers.Add("Cookie", );
+        //    });
+        //}
     }
 }
