@@ -40,19 +40,12 @@ namespace FS.Infrastructure.Extensions
         public static void ConfigureHostedService(this IServiceCollection services)
         {
             services.AddHostedService<PageWorker>();
+            services.AddHostedService<ExibitorWorker>();
         }
 
         public static void ConfigureExibitorLinks(this IServiceCollection services)
         {
             services.AddSingleton(new ExibitorLinks() { Links = new BlockingCollection<string>() });
         }
-
-        //public static void ConfigureHeaderPropagation(this IServiceCollection services)
-        //{
-        //    services.AddHeaderPropagation(options =>
-        //    {
-        //        options.Headers.Add("Cookie", );
-        //    });
-        //}
     }
 }

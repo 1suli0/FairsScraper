@@ -1,10 +1,10 @@
 ﻿using FS.Infrastructure.Data;
 using FS.Infrastructure.DTO;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -16,16 +16,21 @@ namespace FS.Infrastructure.Service
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ExibitorLinks _exibitorLinks;
+        private readonly IConfiguration _configuration;
 
         public PageWorker(IServiceScopeFactory serviceScopeFactory,
-            ExibitorLinks exibitorLinks)
+            ExibitorLinks exibitorLinks, IConfiguration configuration)
         {
             this._serviceScopeFactory = serviceScopeFactory;
             this._exibitorLinks = exibitorLinks;
+            this._configuration = configuration;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            await Task.Delay(TimeSpan.FromSeconds(10));
+            Log.Information("Start Page Worker.");
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -35,7 +40,7 @@ namespace FS.Infrastructure.Service
                         var httpClient = scope.ServiceProvider
                             .GetRequiredService<IHttpClientFactory>().CreateClient("Fs");
 
-                        var data = await httpClient.GetStringAsync("/exhibitors-and-products/exhibitor-index/exhibitor-index-anuga/");
+                        var data = await httpClient.GetStringAsync(_configuration["Website:ExibitorsUrl"]);
 
                         var main = Utility.CreateNode(data);
 
@@ -45,9 +50,9 @@ namespace FS.Infrastructure.Service
 
                         for (int i = 0; i < numberOfPages; i++)
                         {
-                            var url = $"/exhibitors-and-products/exhibitor-index" +
-                                $"/exhibitor-index-anuga/?fw_goto=aussteller/" +
-                                $"blaettern&fw_ajax=1&paginatevalues=&start={i * 20}";
+                            var url = $"{_configuration["Website:ExibitorsUrl"]}" +
+                                $"{_configuration["Website:PaginationUrl"]}" +
+                                $"{i * 20}";
 
                             var response = await httpClient.GetAsync(url);
 
@@ -55,25 +60,20 @@ namespace FS.Infrastructure.Service
 
                             var page = Utility.CreateNode(pageData);
 
-                            try
-                            {
-                                var urls = Utility.GetUrls(page).Distinct().ToList();
+                            var urls = Utility.GetUrls(page).Distinct().ToList();
 
-                                Log.Information($"Page: {i}");
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error(ex, $"INCOMING DATA: {pageData}");
-                                Debugger.Break();
-                            }
+                            foreach (var u in urls)
+                                _exibitorLinks.Links.Add(u);
 
-                            await Task.Delay(1500);
+                            await Task.Delay(TimeSpan.FromSeconds(2));
                         }
                     }
+
+                    await Task.Delay(TimeSpan.FromHours(8));
                 }
                 catch (Exception ex)
                 {
-                    Log.Fatal(ex, "Worker error");
+                    Log.Fatal(ex, "Page Worker error");
                 }
             }
         }
